@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>한자 쓰기 연습</title>
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 24px; }
+    #practiceArea { display:flex; justify-content:center; align-items:center; gap:24px; margin-top:18px; flex-wrap:wrap; }
+    #writer { width: 320px; height: 320px; border: 2px solid #ddd; border-radius: 16px; }
+    #meaningBox { width: 180px; min-height: 320px; border: 2px solid #ddd; border-radius: 16px; display:flex; flex-direction:column; justify-content:center; align-items:center; background:#fafafa; padding:16px; box-sizing:border-box; }
+    #bigChar { font-size:72px; line-height:1; margin-bottom:16px; }
+    #reading { font-size:30px; font-weight:bold; margin-bottom:10px; }
+    #label { font-size:20px; color:#444; }
+    button { font-size: 18px; padding: 10px 16px; margin: 8px; border-radius: 12px; border: 1px solid #ccc; }
+    #message { font-size: 22px; margin: 16px 0; min-height: 34px; }
+    #controls { margin-top: 16px; }
+    input { font-size: 20px; width: 80px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>한자 쓰기 연습</h1>
+  <p>학생이 화면에 한자를 쓰면 맞을 때와 틀릴 때 반응이 나옴</p>
+
+  <div>
+    <label for="charSelect">연습할 글자 선택: </label>
+    <select id="charSelect" style="font-size:20px; padding:6px 10px; border-radius:10px;">
+      <option value="一">하나 일 (一)</option>
+      <option value="二">둘 이 (二)</option>
+      <option value="三">셋 삼 (三)</option>
+      <option value="四">넉 사 (四)</option>
+      <option value="五">다섯 오 (五)</option>
+      <option value="六">여섯 육 (六)</option>
+      <option value="七">일곱 칠 (七)</option>
+      <option value="八">여덟 팔 (八)</option>
+      <option value="九">아홉 구 (九)</option>
+      <option value="十">열 십 (十)</option>
+      <option value="月">달 월 (月)</option>
+      <option value="火">불 화 (火)</option>
+      <option value="水">물 수 (水)</option>
+      <option value="木">나무 목 (木)</option>
+      <option value="金">쇠 금 (金)</option>
+      <option value="土">흙 토 (土)</option>
+      <option value="日">날 일 (日)</option>
+      <option value="東">동녘 동 (東)</option>
+      <option value="西">서녘 서 (西)</option>
+      <option value="南">남녘 남 (南)</option>
+      <option value="北">북녘 북 (北)</option>
+    </select>
+    <button id="loadBtn">문제 선택</button>
+  </div>
+
+  <div id="message">시작 버튼을 누르세요</div>
+  <div id="practiceArea">
+    <div id="writer"></div>
+    <div id="meaningBox">
+      <div id="bigChar">一</div>
+      <div id="reading">하나 일</div>
+      
+    </div>
+  </div>
+
+  <div id="controls">
+    <button id="demoBtn">획순 보기</button>
+    <button id="startBtn">연습 시작</button>
+    <button id="resetBtn">다시 하기</button>
+  </div>
+
+  <audio id="successSound">
+    <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
+  </audio>
+  <audio id="failSound">
+    <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" type="audio/ogg">
+  </audio>
+
+  <script>
+    const message = document.getElementById('message');
+    const successSound = document.getElementById('successSound');
+    const failSound = document.getElementById('failSound');
+    const charSelect = document.getElementById('charSelect');
+
+    let writer;
+
+    const hanjaInfo = {
+      '一': '하나 일',
+      '二': '둘 이',
+      '三': '셋 삼',
+      '四': '넉 사',
+      '五': '다섯 오',
+      '六': '여섯 육',
+      '七': '일곱 칠',
+      '八': '여덟 팔',
+      '九': '아홉 구',
+      '十': '열 십',
+      '月': '달 월',
+      '火': '불 화',
+      '水': '물 수',
+      '木': '나무 목',
+      '金': '쇠 금',
+      '土': '흙 토',
+      '日': '날 일',
+      '東': '동녘 동',
+      '西': '서녘 서',
+      '南': '남녘 남',
+      '北': '북녘 북'
+    };
+
+    function setMessage(text) {
+      message.textContent = text;
+    }
+
+    function buildWriter(character) {
+      document.getElementById('writer').innerHTML = '';
+      document.getElementById('bigChar').textContent = character;
+      document.getElementById('reading').textContent = hanjaInfo[character] || '';
+
+      writer = HanziWriter.create('writer', character, {
+        width: 320,
+        height: 320,
+        padding: 20,
+        showCharacter: false,
+        showOutline: true,
+        strokeAnimationSpeed: 1,
+        delayBetweenStrokes: 300,
+        highlightOnComplete: true,
+        showHintAfterMisses: 1,
+      });
+
+      setMessage('시작 버튼을 누르세요');
+    }
+
+    function startQuiz() {
+      if (!writer) return;
+
+      writer.quiz({
+        onMistake: function(data) {
+          failSound.currentTime = 0;
+          failSound.play().catch(() => {});
+          setMessage(`${data.strokeNum + 1}획 다시 써볼까요?`);
+        },
+        onCorrectStroke: function(data) {
+          successSound.currentTime = 0;
+          successSound.play().catch(() => {});
+          setMessage(`${data.strokeNum + 1}획 성공!`);
+        },
+        onComplete: function(summary) {
+          successSound.currentTime = 0;
+          successSound.play().catch(() => {});
+          setMessage(`${summary.character} 완성! 참 잘했어요.`);
+        }
+      });
+
+      setMessage('한 획씩 써보세요');
+    }
+
+    document.getElementById('demoBtn').addEventListener('click', () => {
+      writer.animateCharacter();
+      setMessage('획순을 보여주고 있어요');
+    });
+
+    document.getElementById('startBtn').addEventListener('click', startQuiz);
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      buildWriter(charSelect.value || '一');
+    });
+
+    document.getElementById('loadBtn').addEventListener('click', () => {
+      buildWriter(charSelect.value || '一');
+    });
+
+    buildWriter('一');
+  </script>
+</body>
+</html>
