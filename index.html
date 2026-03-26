@@ -21,9 +21,14 @@
 </head>
 <body>
   <h1>한자 쓰기 연습</h1>
-  <p>학생이 화면에 한자를 쓰면 맞을 때와 틀릴 때 반응이 나옴</p>
+  
 
   <div>
+    <label for="modeSelect">모드 선택: </label>
+    <select id="modeSelect" style="font-size:20px; padding:6px 10px; border-radius:10px; margin-right:12px;">
+      <option value="practice">연습 모드</option>
+      <option value="test">테스트 모드</option>
+    </select>
     <label for="charSelect">연습할 글자 선택: </label>
     <select id="charSelect" style="font-size:20px; padding:6px 10px; border-radius:10px;">
       <option value="一">하나 일 (一)</option>
@@ -58,6 +63,7 @@
       <div id="bigChar">一</div>
       <div id="reading">하나 일</div>
       
+      
     </div>
   </div>
 
@@ -67,18 +73,54 @@
     <button id="resetBtn">다시 하기</button>
   </div>
 
-  <audio id="successSound">
-    <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
-  </audio>
-  <audio id="failSound">
-    <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" type="audio/ogg">
-  </audio>
+  
 
   <script>
     const message = document.getElementById('message');
-    const successSound = document.getElementById('successSound');
-    const failSound = document.getElementById('failSound');
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSuccessSound() {
+      const osc1 = audioContext.createOscillator();
+      const osc2 = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      osc1.type = 'sine';
+      osc2.type = 'sine';
+      osc1.frequency.setValueAtTime(880, audioContext.currentTime);
+      osc2.frequency.setValueAtTime(1174, audioContext.currentTime + 0.08);
+
+      gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, audioContext.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.45);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(audioContext.destination);
+
+      osc1.start(audioContext.currentTime);
+      osc2.start(audioContext.currentTime + 0.08);
+      osc1.stop(audioContext.currentTime + 0.32);
+      osc2.stop(audioContext.currentTime + 0.45);
+    }
+
+    function playFailSound() {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, audioContext.currentTime);
+      gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.12, audioContext.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.22);
+
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+
+      osc.start(audioContext.currentTime);
+      osc.stop(audioContext.currentTime + 0.22);
+    }
     const charSelect = document.getElementById('charSelect');
+    const modeSelect = document.getElementById('modeSelect');
 
     let writer;
 
@@ -112,7 +154,9 @@
 
     function buildWriter(character) {
       document.getElementById('writer').innerHTML = '';
-      document.getElementById('bigChar').textContent = character;
+      const isTestMode = modeSelect.value === 'test';
+
+      document.getElementById('bigChar').textContent = isTestMode ? '' : character;
       document.getElementById('reading').textContent = hanjaInfo[character] || '';
 
       writer = HanziWriter.create('writer', character, {
@@ -120,14 +164,18 @@
         height: 320,
         padding: 20,
         showCharacter: false,
-        showOutline: true,
+        showOutline: !isTestMode,
         strokeAnimationSpeed: 1,
         delayBetweenStrokes: 300,
         highlightOnComplete: true,
-        showHintAfterMisses: 1,
+        showHintAfterMisses: isTestMode ? 3 : 1,
       });
 
-      setMessage('시작 버튼을 누르세요');
+      if (isTestMode) {
+        setMessage('훈음을 보고 빈칸에 한자를 써보세요');
+      } else {
+        setMessage('시작 버튼을 누르세요');
+      }
     }
 
     function startQuiz() {
@@ -135,18 +183,15 @@
 
       writer.quiz({
         onMistake: function(data) {
-          failSound.currentTime = 0;
-          failSound.play().catch(() => {});
+          playFailSound();
           setMessage(`${data.strokeNum + 1}획 다시 써볼까요?`);
         },
         onCorrectStroke: function(data) {
-          successSound.currentTime = 0;
-          successSound.play().catch(() => {});
+          playSuccessSound();
           setMessage(`${data.strokeNum + 1}획 성공!`);
         },
         onComplete: function(summary) {
-          successSound.currentTime = 0;
-          successSound.play().catch(() => {});
+          playSuccessSound();
           setMessage(`${summary.character} 완성! 참 잘했어요.`);
         }
       });
@@ -166,6 +211,10 @@
     });
 
     document.getElementById('loadBtn').addEventListener('click', () => {
+      buildWriter(charSelect.value || '一');
+    });
+
+    modeSelect.addEventListener('change', () => {
       buildWriter(charSelect.value || '一');
     });
 
